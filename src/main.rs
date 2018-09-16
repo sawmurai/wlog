@@ -9,7 +9,6 @@ use chrono::prelude::*;
 
 #[derive(Debug)]
 struct Entry {
-    id: i32,
     message: String,
     time_created: String
 }
@@ -31,14 +30,12 @@ fn main() {
     let conn = Connection::open(&path).unwrap();
 
     conn.execute("CREATE TABLE IF NOT EXISTS entry (
-                  id              INTEGER PRIMARY KEY,
                   message         TEXT NOT NULL,
                   time_created    TEXT NOT NULL
                   )", &[]).unwrap();
 
     if message != "" {
         let entry = Entry {
-            id: 0,
             message: message,
             time_created: date.to_string()
         };
@@ -47,12 +44,11 @@ fn main() {
                     &[&entry.message, &entry.time_created]).unwrap();
     }
 
-    let mut stmt = conn.prepare("SELECT id, message, time_created FROM entry WHERE time_created = ?").unwrap();
+    let mut stmt = conn.prepare("SELECT message, time_created FROM entry WHERE time_created = ?").unwrap();
     let entry_iter = stmt.query_map(&[&date], |row| {
         Entry {
-            id: row.get(0),
-            message: row.get(1),
-            time_created: row.get(2)
+            message: row.get(0),
+            time_created: row.get(1)
         }
     }).unwrap();
 
