@@ -1,0 +1,13 @@
+[package]
+name = "wlog"
+version = "0.1.0"
+authors = ["Fabian <fabian.becker@b-it-d.de>"]
+
+[dependencies]
+argparse = "0.2.2"
+chrono = "0.4"
+dirs = "1.0.3"
+
+[dependencies.rusqlite]
+version = "0.13.0"
+features = ["bundled"]
