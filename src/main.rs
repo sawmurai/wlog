@@ -2,9 +2,14 @@ extern crate argparse;
 extern crate rusqlite;
 extern crate chrono;
 extern crate dirs;
+extern crate notify_rust;
+
+use notify_rust::NotificationHint as Hint;
+use notify_rust::Notification;
+use notify_rust::*;
 
 use rusqlite::Connection;
-use argparse::{ArgumentParser, Store};
+use argparse::{ArgumentParser, Store, StoreTrue};
 use chrono::prelude::*;
 
 #[derive(Debug)]
@@ -17,12 +22,14 @@ fn main() {
     let dt = Local::now();
     let mut message = "".to_string();
     let mut date = dt.format("%Y-%m-%d").to_string();
+    let mut notification = false;
 
     {  // this block limits scope of borrows by ap.refer() method
         let mut ap = ArgumentParser::new();
         ap.set_description("Work log into sqlite");
         ap.refer(&mut message).add_option(&["--message", "-m"], Store, "Message to log");
         ap.refer(&mut date).add_option(&["--date", "-d"], Store, "Date to read from / write into");
+        ap.refer(&mut notification).add_option(&["--notification", "-n"], StoreTrue, "Print output into a desktop notification");
         ap.parse_args_or_exit();
     }
 
@@ -52,11 +59,25 @@ fn main() {
         }
     }).unwrap();
 
+    let mut output = String::new();
+
     for entry in entry_iter {
         let e = entry.unwrap();
         let date = e.time_created;
         let message = e.message;
 
-        println!("{} - {}", &date, &message);
+        output = output + &format!("{} - {}\n", &date, &message);
+    }
+
+    if notification {
+         Notification::new()
+        .summary(&format!("Work log from {}", &date))
+        .body(&output)
+        .icon("dialog-warning")
+        .hint(Hint::Resident(true))
+        .timeout(Timeout::Never)
+        .show().unwrap();
+    } else {
+        println!("{}", output);
     }
 }
