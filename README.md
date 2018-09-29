@@ -15,4 +15,7 @@ wlog -m "Worked on ticket 123"
 
 # Dump logs and log a new entry for another day
 wlog -m "Worked on ticket 123" -d "2018-08-01"
+
+# Display logs as desktop notification (only on Linux and MacOS)
+wlog -n
 ```
