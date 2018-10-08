@@ -43,7 +43,7 @@ fn main() {
 
     if message != "" {
         let entry = Entry {
-            message: message,
+            message: message.trim().to_string(),
             time_created: date.to_string()
         };
         conn.execute("INSERT INTO entry (message, time_created)
@@ -64,7 +64,7 @@ fn main() {
     for entry in entry_iter {
         let e = entry.unwrap();
         let date = e.time_created;
-        let message = e.message;
+        let message = e.message.trim().to_string();
 
         output = output + &format!("{} - {}\n", &date, &message);
     }
