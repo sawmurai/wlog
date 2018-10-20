@@ -16,12 +16,14 @@ struct Entry {
 fn main() {
     let dt = Local::now();
     let mut message = "".to_string();
+    let mut search = "".to_string();
     let mut date = dt.format("%Y-%m-%d").to_string();
 
     {  // this block limits scope of borrows by ap.refer() method
         let mut ap = ArgumentParser::new();
         ap.set_description("Work log into sqlite");
         ap.refer(&mut message).add_option(&["--message", "-m"], Store, "Message to log");
+        ap.refer(&mut search).add_option(&["--search", "-s"], Store, "Message to search for");
         ap.refer(&mut date).add_option(&["--date", "-d"], Store, "Date to read from / write into");
         ap.parse_args_or_exit();
     }
@@ -39,13 +41,21 @@ fn main() {
             message: message,
             time_created: date.to_string()
         };
-        conn.execute("INSERT INTO entry (message, time_created)
-                    VALUES (?1, ?2)",
-                    &[&entry.message, &entry.time_created]).unwrap();
+
+        conn.execute("INSERT INTO entry (message, time_created) VALUES (?1, ?2)", &[&entry.message, &entry.time_created]).unwrap();
     }
 
-    let mut stmt = conn.prepare("SELECT message, time_created FROM entry WHERE time_created = ?").unwrap();
-    let entry_iter = stmt.query_map(&[&date], |row| {
+    let mut stmt;
+    let param;
+    if search == "" {
+         stmt = conn.prepare("SELECT message, time_created FROM entry WHERE time_created = ?").unwrap();
+         param = date;
+    } else {
+         stmt = conn.prepare("SELECT message, time_created FROM entry WHERE message like ?").unwrap();
+         param = format!("%{}%", search);
+    }
+
+    let entry_iter = stmt.query_map(&[&param], |row| {
         Entry {
             message: row.get(0),
             time_created: row.get(1)
