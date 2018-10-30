@@ -54,12 +54,15 @@ fn main() {
 
     let mut stmt;
     let param;
+    let title;
     if search == "" {
          stmt = conn.prepare("SELECT message, time_created FROM entry WHERE time_created = ?").unwrap();
          param = date;
+         title = format!("Work log from {}", &param);
     } else {
          stmt = conn.prepare("SELECT message, time_created FROM entry WHERE message like ?").unwrap();
          param = format!("%{}%", search);
+         title = format!("Work log like {}", &param);
     }
 
     let entry_iter = stmt.query_map(&[&param], |row| {
@@ -81,7 +84,7 @@ fn main() {
 
     if notification {
          Notification::new()
-        .summary(&format!("Work log from {}", &date))
+        .summary(&title)
         .body(&output)
         .icon("dialog-warning")
         .hint(Hint::Resident(true))
