@@ -45,7 +45,7 @@ impl Wlog {
         self.conn.execute("INSERT INTO entry (message, time_created) VALUES (?1, ?2)", &[&entry.message, &entry.time_created]).unwrap();
     }
 
-    pub fn find_by_date(&mut self, date: &String) -> Vec<Entry> {
+    pub fn find_by_date(&mut self, date: &str) -> Vec<Entry> {
         let mut stmt = self.conn.prepare("SELECT message, time_created FROM entry WHERE time_created = ?").unwrap();
 
         stmt
@@ -55,7 +55,7 @@ impl Wlog {
         .collect::<Vec<Entry>>()   
     }    
 
-    pub fn find_by_message(&mut self, message: &String) -> Vec<Entry> {
+    pub fn find_by_message(&mut self, message: &str) -> Vec<Entry> {
         let mut stmt = self.conn.prepare("SELECT message, time_created FROM entry WHERE message like ?").unwrap();
 
         stmt
