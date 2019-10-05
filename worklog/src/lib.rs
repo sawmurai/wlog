@@ -1,3 +1,6 @@
+extern crate chrono;
+extern crate rusqlite;
+
 use chrono::prelude::*;
 use rusqlite::{Connection, NO_PARAMS};
 use std::result::Result;

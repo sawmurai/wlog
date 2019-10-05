@@ -1,0 +1,12 @@
+[package]
+name = "worklog"
+version = "0.1.0"
+authors = ["sawmurai <fabian.becer@b-it-d.de>"]
+edition = "2018"
+
+[dependencies]
+chrono = "0.4"
+
+[dependencies.rusqlite]
+version = "0.20.0"
+features = ["bundled"]

@@ -1,0 +1,12 @@
+[package]
+name = "client"
+version = "0.1.0"
+authors = ["sawmurai <fabian.becer@b-it-d.de>"]
+edition = "2018"
+
+[dependencies]
+argparse = "0.2.2"
+chrono = "0.4"
+dirs = "1.0.3"
+notify-rust = "3"
+worklog = { path = "../worklog" }

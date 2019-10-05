@@ -1,14 +1,7 @@
-[package]
-name = "wlog"
-version = "0.2.0"
-authors = ["Fabian <fabian.becker@b-it-d.de>"]
+[workspace]
 
-[dependencies]
-argparse = "0.2.2"
-chrono = "0.4"
-dirs = "1.0.3"
-notify-rust = "3"
-
-[dependencies.rusqlite]
-version = "0.20.0"
-features = ["bundled"]
+members = [
+    "worklog",
+    "client",
+    "server"
+]

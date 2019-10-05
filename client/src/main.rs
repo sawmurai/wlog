@@ -1,8 +1,8 @@
 extern crate argparse;
-extern crate rusqlite;
 extern crate chrono;
 extern crate dirs;
 extern crate notify_rust;
+extern crate worklog;
 
 use notify_rust::NotificationHint as Hint;
 use notify_rust::Notification;
@@ -10,10 +10,8 @@ use notify_rust::*;
 
 use argparse::{ArgumentParser, Store, StoreTrue};
 
-mod wlog;
-
 fn main() {
-    let mut log = wlog::Wlog::new(&format!("{}/{}", &dirs::data_dir().unwrap().to_str().unwrap(), "wlog.sqlite"));
+    let mut log = worklog::Wlog::new(&format!("{}/{}", &dirs::data_dir().unwrap().to_str().unwrap(), "wlog.sqlite"));
     
     let mut date = "".to_string();
     let mut message = "".to_string();
@@ -31,7 +29,7 @@ fn main() {
     }
 
     if message != "" {
-        log.log(&wlog::Entry::now(&message));
+        log.log(&worklog::Entry::now(&message));
     }
 
     let title;
