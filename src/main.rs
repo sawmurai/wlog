@@ -8,21 +8,16 @@ use notify_rust::NotificationHint as Hint;
 use notify_rust::Notification;
 use notify_rust::*;
 
-use rusqlite::Connection;
 use argparse::{ArgumentParser, Store, StoreTrue};
-use chrono::prelude::*;
 
-#[derive(Debug)]
-struct Entry {
-    message: String,
-    time_created: String
-}
+mod wlog;
 
 fn main() {
-    let dt = Local::now();
+    let mut log = wlog::Wlog::new(format!("{}/{}", &dirs::data_dir().unwrap().to_str().unwrap(), "wlog.sqlite"));
+    
+    let mut date = "".to_string();
     let mut message = "".to_string();
     let mut search = "".to_string();
-    let mut date = dt.format("%Y-%m-%d").to_string();
     let mut notification = false;
 
     {  // this block limits scope of borrows by ap.refer() method
@@ -35,47 +30,24 @@ fn main() {
         ap.parse_args_or_exit();
     }
 
-    let path = format!("{}/{}", &dirs::data_dir().unwrap().to_str().unwrap(), "wlog.sqlite");
-    let conn = Connection::open(&path).unwrap();
-
-    conn.execute("CREATE TABLE IF NOT EXISTS entry (
-                  message         TEXT NOT NULL,
-                  time_created    TEXT NOT NULL
-                  )", &[]).unwrap();
-
     if message != "" {
-        let entry = Entry {
-            message: message.trim().to_string(),
-            time_created: date.to_string()
-        };
-
-        conn.execute("INSERT INTO entry (message, time_created) VALUES (?1, ?2)", &[&entry.message, &entry.time_created]).unwrap();
+        log.log(wlog::Entry::now(message.clone()));
     }
 
-    let mut stmt;
-    let param;
     let title;
-    if search == "" {
-         stmt = conn.prepare("SELECT message, time_created FROM entry WHERE time_created = ?").unwrap();
-         param = date;
-         title = format!("Work log from {}", &param);
-    } else {
-         stmt = conn.prepare("SELECT message, time_created FROM entry WHERE message like ?").unwrap();
-         param = format!("%{}%", search);
-         title = format!("Work log like {}", &param);
-    }
+    let results;
 
-    let entry_iter = stmt.query_map(&[&param], |row| {
-        Entry {
-            message: row.get(0),
-            time_created: row.get(1)
-        }
-    }).unwrap();
+    if search == "" {
+        results = log.find_by_date(&date);         
+        title = format!("Work log from {}", &date);
+    } else {
+        results = log.find_by_message(&message);    
+        title = format!("Work log like {}", &search);
+    }
 
     let mut output = String::new();
 
-    for entry in entry_iter {
-        let e = entry.unwrap();
+    for e in results {
         let date = e.time_created;
         let message = e.message.trim().to_string();
 
