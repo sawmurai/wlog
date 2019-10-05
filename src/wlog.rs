@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use rusqlite::{Connection, NO_PARAMS};
+use std::result::Result;
 
 pub struct Entry {
     pub message: String,
@@ -7,20 +8,20 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub fn now(message: String) -> Entry {
+    pub fn now(message: &String) -> Self {
         let dt = Local::now();
         let date = dt.format("%Y-%m-%d").to_string();
         
-        Entry {
+        Self {
             message: message.trim().to_string(),
-            time_created: date.to_string()
+            time_created: date
         }
     }
 
-    pub fn from_past(date: String, message: String) -> Entry {
-        Entry {
+    pub fn from_past(date: &String, message: &String) -> Self {
+        Self {
             message: message.trim().to_string(),
-            time_created: date
+            time_created: date.to_string()
         }
     }
 }
@@ -30,7 +31,7 @@ pub struct Wlog {
 }
 
 impl Wlog {
-    pub fn new(path: String) -> Wlog {
+    pub fn new(path: &str) -> Self {
         let conn = Connection::open(&path).unwrap();
 
         conn.execute("CREATE TABLE IF NOT EXISTS entry (
@@ -38,10 +39,10 @@ impl Wlog {
                   time_created    TEXT NOT NULL
                   )", NO_PARAMS).unwrap();
 
-        Wlog {conn}
+        Self {conn}
     }
 
-    pub fn log(&mut self, entry: Entry) {
+    pub fn log(&mut self, entry: &Entry) {
         self.conn.execute("INSERT INTO entry (message, time_created) VALUES (?1, ?2)", &[&entry.message, &entry.time_created]).unwrap();
     }
 
@@ -49,9 +50,9 @@ impl Wlog {
         let mut stmt = self.conn.prepare("SELECT message, time_created FROM entry WHERE time_created = ?").unwrap();
 
         stmt
-        .query_map(&[&date], |row| Ok(Entry::from_past(row.get(1).unwrap(), row.get(0).unwrap())))
+        .query_map(&[&date], |row| Ok(Entry::from_past(&row.get(1).unwrap(), &row.get(0).unwrap())))
         .unwrap()
-        .map(|e| e.unwrap())
+        .map(Result::unwrap)
         .collect::<Vec<Entry>>()   
     }    
 
@@ -59,9 +60,9 @@ impl Wlog {
         let mut stmt = self.conn.prepare("SELECT message, time_created FROM entry WHERE message like ?").unwrap();
 
         stmt
-        .query_map(&[&message], |row| Ok(Entry::from_past(row.get(1).unwrap(), row.get(0).unwrap())))
+        .query_map(&[&message], |row| Ok(Entry::from_past(&row.get(1).unwrap(), &row.get(0).unwrap())))
         .unwrap()
-        .map(|e| e.unwrap())
+        .map(Result::unwrap)
         .collect::<Vec<Entry>>()         
     }    
 }
@@ -72,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_new_entry() {
-        let e = Entry::now(String::from("new entry"));
+        let e = Entry::now(&String::from("new entry"));
 
         let dt = Local::now();
         let date = dt.format("%Y-%m-%d").to_string();
@@ -82,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_new_entry_from_past() {
-        let e = Entry::from_past(String::from("2019-01-01"), String::from("new entry"));
+        let e = Entry::from_past(&String::from("2019-01-01"), &String::from("new entry"));
 
         assert_eq!("new entry", e.message);
         assert_eq!("2019-01-01", e.time_created);

@@ -13,7 +13,7 @@ use argparse::{ArgumentParser, Store, StoreTrue};
 mod wlog;
 
 fn main() {
-    let mut log = wlog::Wlog::new(format!("{}/{}", &dirs::data_dir().unwrap().to_str().unwrap(), "wlog.sqlite"));
+    let mut log = wlog::Wlog::new(&format!("{}/{}", &dirs::data_dir().unwrap().to_str().unwrap(), "wlog.sqlite"));
     
     let mut date = "".to_string();
     let mut message = "".to_string();
@@ -31,7 +31,7 @@ fn main() {
     }
 
     if message != "" {
-        log.log(wlog::Entry::now(message.clone()));
+        log.log(&wlog::Entry::now(&message));
     }
 
     let title;
@@ -51,7 +51,7 @@ fn main() {
         let date = e.time_created;
         let message = e.message.trim().to_string();
 
-        output = output + &format!("{} - {}\n", &date, &message);
+        output.push_str(&format!("{} - {}\n", &date, &message));
     }
 
     if notification {
