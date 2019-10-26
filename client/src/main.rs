@@ -10,10 +10,11 @@ use notify_rust::NotificationHint as Hint;
 use notify_rust::*;
 
 use argparse::{ArgumentParser, Store, StoreTrue};
-use std::io::{BufReader, Error, ErrorKind};
+use std::io::{BufReader};
 use tokio::io;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
+use chrono::Local;
 
 fn main() {
     let mut log = worklog::Wlog::new(&format!(
@@ -22,7 +23,8 @@ fn main() {
         "wlog.sqlite"
     ));
 
-    let mut date = "".to_string();
+    let dt = Local::now();
+    let mut date = dt.format("%Y-%m-%d").to_string();
     let mut message = "".to_string();
     let mut search = "".to_string();
     let mut notification = false;
@@ -54,38 +56,54 @@ fn main() {
     if remote != "" {
         let addr = remote.parse().unwrap();
         let client = TcpStream::connect(&addr)
-            .and_then(|stream| {
-                let (rx, tx) = stream.split();
+            .and_then(move |stream| {
+                let mut result = String::from("IMPORT ");
 
-                io::write_all(tx, "DUMP\n")
-                    .then(|_result| {
-                        let reader = BufReader::new(rx);
+                result.push_str(
+                    &log
+                        .find_all()
+                        .into_iter()
+                        .map(|e| format!("{}", e))
+                        .collect::<Vec<String>>()
+                        .join("\nIMPORT "),
+                );
 
-                        let line = io::read_until(reader, b'\n', Vec::new());
+                result.push_str("\n\n");                
+                io::write_all(stream, result)
+                .and_then(|(stream, _)| {
+                    Ok((stream, log))
+                })
+            })
+            .and_then(|(stream, log)| {
+                io::write_all(stream, "DUMP\n")
+                .and_then(|(stream,_)| {
+                    Ok((stream, log))
+                })
+            })
+            .and_then(|(stream, mut log)| {
+                let (rx, _tx) = stream.split();
 
-                        let line = line.and_then(|(reader, vec)| {
-                            if vec.len() == 0 {
-                                Err(Error::new(ErrorKind::BrokenPipe, "broken pipe"))
-                            } else {
-                                Ok((reader, vec))
-                            }
-                        });
+                let reader = BufReader::new(rx);
 
-                        line
-                    })
-                    .and_then(|(_reader, vec)| {
-                        if let Ok(string) = String::from_utf8(vec) {
-                            println!("{}", &string);
-                        }
+                io::lines(reader)
+                .take_while(|line| Ok(line != ""))
+                .for_each(move |line| {
+                    if line.starts_with("IMPORT ") {
 
-                        Ok(())
-                    })
+                        println!("{}", &line);
+                        log.sync(&worklog::Entry::from_json(&line.chars().skip(7).collect::<String>()));
+                    }
+
+                    Ok(())
+                })
             })
             .map_err(|err| {
                 eprintln!("connection error: {:?}", err);
             });
 
         tokio::run(client);
+
+        return;
     }
 
     if message != "" {

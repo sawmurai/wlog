@@ -115,8 +115,6 @@ fn main() {
                 let database_file = database_file.clone();
                 let this_tx = tx.clone();
                 line.map(move |(reader, msg)| {
-                    // For each open connection except the sender, send the
-                    // string via the channel.
                     println!("{}: {:?}", addr, &msg);
                     this_tx
                         .unbounded_send(process_command(&msg, &database_file))
@@ -164,7 +162,7 @@ fn process_command(command: &str, database_file: &str) -> String {
     }
 
     if command.eq_ignore_ascii_case("DUMP") {
-        let mut result = String::from("[");
+        let mut result = String::from("IMPORT ");
 
         result.push_str(
             &wlog
@@ -172,10 +170,12 @@ fn process_command(command: &str, database_file: &str) -> String {
                 .into_iter()
                 .map(|e| format!("{}", e))
                 .collect::<Vec<String>>()
-                .join(","),
+                .join("\nIMPORT "),
         );
 
-        result.push_str("]\n");
+        result.push_str("\n\n");
+
+        println!("{}", result);
 
         return result;
     }
@@ -194,6 +194,12 @@ fn process_command(command: &str, database_file: &str) -> String {
         );
 
         return result;
+    }
+
+    if command.starts_with("IMPORT ") {
+        wlog.sync(&worklog::Entry::from_json(&command.chars().skip(7).collect::<String>()));
+
+        return String::from("OK\n");
     }
 
     format!("Error: Unknown command {}\n", command)
