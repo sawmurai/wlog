@@ -197,7 +197,9 @@ fn process_command(command: &str, database_file: &str) -> String {
     }
 
     if command.starts_with("IMPORT ") {
-        wlog.sync(&worklog::Entry::from_json(&command.chars().skip(7).collect::<String>()));
+        wlog.sync(&worklog::Entry::from_json(
+            &command.chars().skip(7).collect::<String>(),
+        ));
 
         return String::from("OK\n");
     }

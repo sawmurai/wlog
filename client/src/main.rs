@@ -10,11 +10,11 @@ use notify_rust::NotificationHint as Hint;
 use notify_rust::*;
 
 use argparse::{ArgumentParser, Store, StoreTrue};
-use std::io::{BufReader};
+use chrono::Local;
+use std::io::BufReader;
 use tokio::io;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
-use chrono::Local;
 
 fn main() {
     let mut log = worklog::Wlog::new(&format!(
@@ -60,25 +60,18 @@ fn main() {
                 let mut result = String::from("IMPORT ");
 
                 result.push_str(
-                    &log
-                        .find_all()
+                    &log.find_all()
                         .into_iter()
                         .map(|e| format!("{}", e))
                         .collect::<Vec<String>>()
                         .join("\nIMPORT "),
                 );
 
-                result.push_str("\n\n");                
-                io::write_all(stream, result)
-                .and_then(|(stream, _)| {
-                    Ok((stream, log))
-                })
+                result.push_str("\n\n");
+                io::write_all(stream, result).and_then(|(stream, _)| Ok((stream, log)))
             })
             .and_then(|(stream, log)| {
-                io::write_all(stream, "DUMP\n")
-                .and_then(|(stream,_)| {
-                    Ok((stream, log))
-                })
+                io::write_all(stream, "DUMP\n").and_then(|(stream, _)| Ok((stream, log)))
             })
             .and_then(|(stream, mut log)| {
                 let (rx, _tx) = stream.split();
@@ -86,16 +79,17 @@ fn main() {
                 let reader = BufReader::new(rx);
 
                 io::lines(reader)
-                .take_while(|line| Ok(line != ""))
-                .for_each(move |line| {
-                    if line.starts_with("IMPORT ") {
+                    .take_while(|line| Ok(line != ""))
+                    .for_each(move |line| {
+                        if line.starts_with("IMPORT ") {
+                            println!("{}", &line);
+                            log.sync(&worklog::Entry::from_json(
+                                &line.chars().skip(7).collect::<String>(),
+                            ));
+                        }
 
-                        println!("{}", &line);
-                        log.sync(&worklog::Entry::from_json(&line.chars().skip(7).collect::<String>()));
-                    }
-
-                    Ok(())
-                })
+                        Ok(())
+                    })
             })
             .map_err(|err| {
                 eprintln!("connection error: {:?}", err);
