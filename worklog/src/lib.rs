@@ -1,10 +1,15 @@
 extern crate chrono;
 extern crate rusqlite;
+extern crate serde;
+extern crate serde_json;
 
+use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
 use rusqlite::{Connection, NO_PARAMS};
 use std::result::Result;
+use std::fmt;
 
+#[derive(Serialize, Deserialize)]
 pub struct Entry {
     pub message: String,
     pub time_created: String
@@ -21,12 +26,21 @@ impl Entry {
         }
     }
 
-    pub fn from_past(date: &String, message: &String) -> Self {
+    pub fn from_date(date: &String, message: &String) -> Self {
         Self {
             message: message.trim().to_string(),
             time_created: date.to_string()
         }
     }
+}
+
+impl fmt::Display for Entry {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(&serde_json::to_string(self).unwrap());
+
+        Ok(())
+    }
+
 }
 
 pub struct Wlog {
@@ -49,11 +63,21 @@ impl Wlog {
         self.conn.execute("INSERT INTO entry (message, time_created) VALUES (?1, ?2)", &[&entry.message, &entry.time_created]).unwrap();
     }
 
+    pub fn find_all(&mut self) -> Vec<Entry> {
+        let mut stmt = self.conn.prepare("SELECT message, time_created FROM entry").unwrap();
+
+        stmt
+        .query_map(NO_PARAMS, |row| Ok(Entry::from_date(&row.get(1).unwrap(), &row.get(0).unwrap())))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect::<Vec<Entry>>()   
+    }    
+
     pub fn find_by_date(&mut self, date: &str) -> Vec<Entry> {
         let mut stmt = self.conn.prepare("SELECT message, time_created FROM entry WHERE time_created = ?").unwrap();
 
         stmt
-        .query_map(&[&date], |row| Ok(Entry::from_past(&row.get(1).unwrap(), &row.get(0).unwrap())))
+        .query_map(&[&date], |row| Ok(Entry::from_date(&row.get(1).unwrap(), &row.get(0).unwrap())))
         .unwrap()
         .map(Result::unwrap)
         .collect::<Vec<Entry>>()   
@@ -63,7 +87,7 @@ impl Wlog {
         let mut stmt = self.conn.prepare("SELECT message, time_created FROM entry WHERE message like ?").unwrap();
 
         stmt
-        .query_map(&[&message], |row| Ok(Entry::from_past(&row.get(1).unwrap(), &row.get(0).unwrap())))
+        .query_map(&[&message], |row| Ok(Entry::from_date(&row.get(1).unwrap(), &row.get(0).unwrap())))
         .unwrap()
         .map(Result::unwrap)
         .collect::<Vec<Entry>>()         
