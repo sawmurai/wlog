@@ -2,21 +2,17 @@ extern crate argparse;
 extern crate chrono;
 extern crate dirs;
 extern crate notify_rust;
-extern crate tokio;
 extern crate worklog;
-
-use notify_rust::Notification;
-use notify_rust::NotificationHint as Hint;
-use notify_rust::*;
 
 use argparse::{ArgumentParser, Store, StoreTrue};
 use chrono::Local;
-use std::io::BufReader;
-use tokio::io;
-use tokio::net::TcpStream;
-use tokio::prelude::*;
+use notify_rust::Notification;
+use notify_rust::NotificationHint as Hint;
+use notify_rust::*;
+use reqwest::blocking::Client;
+use std::collections::HashMap;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut log = worklog::Wlog::new(&format!(
         "{}/{}",
         &dirs::data_dir().unwrap().to_str().unwrap(),
@@ -29,6 +25,7 @@ fn main() {
     let mut search = "".to_string();
     let mut notification = false;
     let mut remote = "".to_string();
+    let api_key = std::env::var("API_KEY").unwrap_or(".".to_string());
 
     {
         // this block limits scope of borrows by ap.refer() method
@@ -54,50 +51,55 @@ fn main() {
     }
 
     if remote != "" {
-        let addr = remote.parse().unwrap();
-        let client = TcpStream::connect(&addr)
-            .and_then(move |stream| {
-                let mut result = String::from("IMPORT ");
+        for entry in log.find_all().iter() {
+            let request = Client::builder()
+                .build()?
+                .post(&remote)
+                .body(format!("{}", entry))
+                .header("Content-type", "application/json")
+                .header("Authorization", api_key.clone());
 
-                result.push_str(
-                    &log.find_all()
-                        .into_iter()
-                        .map(|e| format!("{}", e))
-                        .collect::<Vec<String>>()
-                        .join("\nIMPORT "),
-                );
+            match request.send()?.status() {
+                reqwest::StatusCode::CREATED => eprintln!("Sent {}", entry.id),
+                reqwest::StatusCode::OK => eprintln!("{} already in sync", entry.id),
+                _ => (),
+            }
+        }
 
-                result.push_str("\n\n");
-                io::write_all(stream, result).and_then(|(stream, _)| Ok((stream, log)))
-            })
-            .and_then(|(stream, log)| {
-                io::write_all(stream, "DUMP\n").and_then(|(stream, _)| Ok((stream, log)))
-            })
-            .and_then(|(stream, mut log)| {
-                let (rx, _tx) = stream.split();
+        let request = Client::builder()
+            .build()?
+            .get(&remote)
+            .header("Authorization", api_key);
 
-                let reader = BufReader::new(rx);
+        let resp = request.send()?;
 
-                io::lines(reader)
-                    .take_while(|line| Ok(line != ""))
-                    .for_each(move |line| {
-                        if line.starts_with("IMPORT ") {
-                            println!("{}", &line);
-                            log.sync(&worklog::Entry::from_json(
-                                &line.chars().skip(7).collect::<String>(),
-                            ));
-                        }
+        for entry in resp.json::<Vec<HashMap<String, String>>>()? {
+            let id = if let Some(id) = entry.get("id") {
+                id.clone()
+            } else {
+                continue;
+            };
+            let message = if let Some(message) = entry.get("message") {
+                message
+            } else {
+                continue;
+            };
+            let time_created = if let Some(time_created) = entry.get("time_created") {
+                time_created
+            } else {
+                continue;
+            };
 
-                        Ok(())
-                    })
-            })
-            .map_err(|err| {
-                eprintln!("connection error: {:?}", err);
-            });
+            if log.sync(&worklog::Entry::from_date(
+                &Some(id.clone()),
+                time_created,
+                message,
+            )) {
+                eprintln!("Imported {}", id);
+            }
+        }
 
-        tokio::run(client);
-
-        return;
+        return Ok(());
     }
 
     if message != "" {
@@ -136,4 +138,6 @@ fn main() {
     } else {
         println!("{}", output);
     }
+
+    Ok(())
 }

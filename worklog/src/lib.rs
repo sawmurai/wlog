@@ -30,7 +30,7 @@ impl Entry {
         }
     }
 
-    pub fn from_date(id: Option<&String>, date: &String, message: &String) -> Self {
+    pub fn from_date(id: &Option<String>, date: &String, message: &String) -> Self {
         if let Some(id) = id {
             return Self {
                 id: Uuid::parse_str(id).unwrap(),
@@ -89,7 +89,7 @@ impl Wlog {
             .unwrap();
     }
 
-    pub fn sync(&mut self, entry: &Entry) {
+    pub fn sync(&mut self, entry: &Entry) -> bool {
         let id = &entry.id.to_string();
 
         if self.find_by_id(&id).len() == 0 {
@@ -100,9 +100,9 @@ impl Wlog {
                 )
                 .unwrap();
 
-            println!("Importing message with id {}", &id);
+            true
         } else {
-            println!("{} already exists", &id);
+            false
         }
     }
 
@@ -114,7 +114,7 @@ impl Wlog {
 
         stmt.query_map(&[&id], |row| {
             Ok(Entry::from_date(
-                Some(&row.get(0).unwrap()),
+                &Some(row.get(0).unwrap()),
                 &row.get(1).unwrap(),
                 &row.get(2).unwrap(),
             ))
@@ -124,7 +124,7 @@ impl Wlog {
         .collect::<Vec<Entry>>()
     }
 
-    pub fn find_all(&mut self) -> Vec<Entry> {
+    pub fn find_all(&self) -> Vec<Entry> {
         let mut stmt = self
             .conn
             .prepare("SELECT id, time_created, message FROM entry")
@@ -132,7 +132,7 @@ impl Wlog {
 
         stmt.query_map(NO_PARAMS, |row| {
             Ok(Entry::from_date(
-                Some(&row.get(0).unwrap()),
+                &Some(row.get(0).unwrap()),
                 &row.get(1).unwrap(),
                 &row.get(2).unwrap(),
             ))
@@ -150,7 +150,7 @@ impl Wlog {
 
         stmt.query_map(&[&date], |row| {
             Ok(Entry::from_date(
-                Some(&row.get(0).unwrap()),
+                &Some(row.get(0).unwrap()),
                 &row.get(1).unwrap(),
                 &row.get(2).unwrap(),
             ))
@@ -168,7 +168,7 @@ impl Wlog {
 
         stmt.query_map(&[&message], |row| {
             Ok(Entry::from_date(
-                Some(&row.get(0).unwrap()),
+                &Some(row.get(0).unwrap()),
                 &row.get(1).unwrap(),
                 &row.get(2).unwrap(),
             ))
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn test_new_entry_from_date_with_id() {
         let e = Entry::from_date(
-            Some(&String::from("c1a69488-d452-4f23-9567-b81138b04096")),
+            &Some(String::from("c1a69488-d452-4f23-9567-b81138b04096")),
             &String::from("2019-01-01"),
             &String::from("new entry"),
         );
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn test_new_entry_from_date_without_id() {
         let e = Entry::from_date(
-            None,
+            &None,
             &String::from("2019-01-01"),
             &String::from("new entry"),
         );

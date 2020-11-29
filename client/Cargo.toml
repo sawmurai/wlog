@@ -9,5 +9,5 @@ argparse = "0.2.2"
 chrono = "0.4"
 dirs = "1.0.3"
 notify-rust = "3"
-tokio = "0.1"
+reqwest = { version = "0.10", features = ["blocking", "json"] }
 worklog = { path = "../worklog" }
