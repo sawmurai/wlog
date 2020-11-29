@@ -51,20 +51,20 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     if remote != "" {
-        for entry in log.find_all().iter() {
-            let request = Client::builder()
-                .build()?
-                .post(&remote)
-                .body(format!("{}", entry))
-                .header("Content-type", "application/json")
-                .header("Authorization", api_key.clone());
-
-            match request.send()?.status() {
-                reqwest::StatusCode::CREATED => eprintln!("Sent {}", entry.id),
-                reqwest::StatusCode::OK => eprintln!("{} already in sync", entry.id),
-                _ => (),
-            }
-        }
+        Client::builder()
+            .build()?
+            .post(&remote)
+            .body(format!(
+                "[{}]",
+                log.find_all()
+                    .iter()
+                    .map(|e| format!("{}", e))
+                    .collect::<Vec<String>>()
+                    .join(",")
+            ))
+            .header("Content-type", "application/json")
+            .header("Authorization", api_key.clone())
+            .send()?;
 
         let request = Client::builder()
             .build()?

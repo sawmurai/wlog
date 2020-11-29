@@ -38,7 +38,6 @@ impl<'a, 'r> FromRequest<'a, 'r> for ApiKey {
         let headers: Vec<_> = request.headers().get("authorization").collect();
         let pk = env::var("SECRET").unwrap();
         for value in headers {
-            eprintln!(">>{}", value);
             if value == pk {
                 return Outcome::Success(ApiKey(value.to_string()));
             } else {
@@ -49,6 +48,9 @@ impl<'a, 'r> FromRequest<'a, 'r> for ApiKey {
         Outcome::Failure((Status::Unauthorized, ApiKeyError::NotProvided))
     }
 }
+
+#[derive(Deserialize)]
+struct EntryCollection(Vec<NewEntry>);
 
 #[derive(Deserialize)]
 struct NewEntry {
@@ -79,11 +81,13 @@ fn index(wlog: State<WlogMutex>, _apikey: ApiKey) -> content::Json<String> {
     content::Json(String::new())
 }
 
-#[post("/", format = "json", data = "<entry>")]
-fn post_log(wlog: State<WlogMutex>, entry: Json<NewEntry>, _apikey: ApiKey) -> Status {
+#[post("/", format = "json", data = "<collection>")]
+fn post_log(wlog: State<WlogMutex>, collection: Json<EntryCollection>, _apikey: ApiKey) -> Status {
     if let Ok(wlog) = wlog.lock().as_mut() {
-        if wlog.sync(&entry.0.into()) {
-            return Status::Created;
+        let collection = collection.0;
+
+        for entry in collection.0 {
+            wlog.sync(&entry.into());
         }
     }
 
