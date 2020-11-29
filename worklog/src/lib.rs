@@ -53,9 +53,7 @@ impl Entry {
 
 impl fmt::Display for Entry {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(&serde_json::to_string(self).unwrap());
-
-        Ok(())
+        fmt.write_str(&serde_json::to_string(self).unwrap())
     }
 }
 
