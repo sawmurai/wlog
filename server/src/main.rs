@@ -5,7 +5,6 @@ use std::sync::Mutex;
 use rocket::http::Status;
 use rocket::{request::FromRequest, response::content};
 use rocket::{Outcome, State};
-use rocket_contrib::databases::diesel;
 use rocket_contrib::json::Json;
 use serde::Deserialize;
 use std::env;
@@ -16,9 +15,6 @@ extern crate worklog;
 #[macro_use]
 extern crate rocket;
 extern crate rocket_contrib;
-
-#[rocket_contrib::database("sqlite_wlog")]
-struct WlogDbCon(diesel::SqliteConnection);
 
 type WlogMutex = Mutex<Wlog>;
 
@@ -97,7 +93,8 @@ fn post_log(wlog: State<WlogMutex>, collection: Json<EntryCollection>, _apikey: 
 fn main() {
     rocket::ignite()
         .mount("/", routes![index, post_log])
-        .manage(Mutex::new(Wlog::new("/tmp/wlog.sqlite")))
-        .attach(WlogDbCon::fairing())
+        .manage(Mutex::new(Wlog::new(
+            &env::var("DATABASE").unwrap_or("wlog.sqlite".to_string()),
+        )))
         .launch();
 }

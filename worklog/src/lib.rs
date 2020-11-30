@@ -97,7 +97,6 @@ impl Wlog {
                     &[&id, &entry.message, &entry.time_created],
                 )
                 .unwrap();
-
             true
         } else {
             false
